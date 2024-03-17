@@ -10,6 +10,6 @@ public class ErrorsProperties {
     }
 
     public static String getProperty(String key) {
-        return "\u001B[31m" + ErrorsProperties.resourceBundle.getString(key) + "\u001B[0m";
+        return ErrorsProperties.resourceBundle.getString(key);
     }
 }
