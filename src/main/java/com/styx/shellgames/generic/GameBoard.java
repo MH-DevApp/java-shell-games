@@ -63,7 +63,7 @@ public class GameBoard {
             this.languagesAvailable.put(this.languagesAvailable.size() + 1, languages);
         });
 
-        if (GameBoard.languageSelected != this.languagesAvailable.get(1)[0]) {
+        if (!GameBoard.languageSelected.equals(this.languagesAvailable.get(1)[0])) {
             GameBoard.languageSelected = this.languagesAvailable.get(1)[0];
             loadGameByLanguage();
         }
