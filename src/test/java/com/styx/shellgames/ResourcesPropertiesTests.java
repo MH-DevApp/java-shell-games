@@ -8,6 +8,7 @@ public class ResourcesPropertiesTests {
 
     @Test
     void languageAvailableProperty_exist() {
+        ApplicationProperties.loadProperties();
         String languagesAvailable = ApplicationProperties.getProperty("languages.available");
         assertThat(languagesAvailable).isNotNull();
     }
