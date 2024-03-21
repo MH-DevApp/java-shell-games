@@ -26,6 +26,27 @@ public class GameBoard {
                 try {
                     this.selectGame();
                     this.game.startGame();
+
+                    Character answer = null;
+                    while (answer == null) {
+                        try {
+                            if (GameBoard.errorMessage != null) {
+                                System.out.print("\u001B[31m");
+                                System.out.println(GameBoard.errorMessage);
+                                System.out.print("\u001B[0m");
+                                GameBoard.errorMessage = null;
+                            }
+
+                            System.out.println(ApplicationProperties.getProperty("%s.exit".formatted(GameBoard.languageSelected)));
+                            answer = ScanInput.ScanChar();
+                        } catch (ScanInputException e) {
+                            GameBoard.errorMessage = e.getMessage();
+                        }
+                    }
+
+                    if (answer.equals('y') || answer.equals('Y') || answer.equals('o') || answer.equals('O')) {
+                        break;
+                    }
                 } catch (ExitGameException e) {
                     throw new ExitGameException(e.getMessage());
                 }
