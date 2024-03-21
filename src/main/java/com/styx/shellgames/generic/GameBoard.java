@@ -1,5 +1,6 @@
 package com.styx.shellgames.generic;
 
+import com.styx.shellgames.game.Game;
 import com.styx.shellgames.utils.ApplicationProperties;
 import com.styx.shellgames.utils.ErrorsProperties;
 import com.styx.shellgames.utils.GameProperties;
@@ -7,6 +8,7 @@ import com.styx.shellgames.utils.print.formater.PrintFormatter;
 import com.styx.shellgames.utils.scanner.ScanInput;
 import com.styx.shellgames.utils.scanner.ScanInputException;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 public class GameBoard {
@@ -14,27 +16,25 @@ public class GameBoard {
     private final Map<Integer, String[]> languagesAvailable = new HashMap<>();
     private final Map<Integer, String[]> gamesName = new HashMap<>();
     public static String languageSelected;
+    private Game game;
 
     public GameBoard() {
         try {
             this.initializeGame();
+            this.selectLanguage();
             while (true) {
                 try {
-                    this.selectLanguage();
                     this.selectGame();
-                    break;
-                } catch (NumberFormatException e) {
-                    GameBoard.errorMessage = ErrorsProperties
-                            .getProperty("input.notInteger")
-                            .formatted(this.languagesAvailable.size());
-                } catch (ScanInputException e) {
-                    GameBoard.errorMessage = e.getMessage();
+                    this.game.startGame();
+                } catch (ExitGameException e) {
+                    throw new ExitGameException(e.getMessage());
                 }
             }
-
         } catch (MissingResourceException e) {
-            System.out.println("No language available, please check the 'application.properties' file.");
+            System.out.println("\n\u001B[31m" + e.getMessage() + "\u001B[0m");
             System.exit(0);
+        } catch (ExitGameException e) {
+            System.out.println("\n\u001B[31m" + e.getMessage() + "\u001B[0m");
         }
     }
 
@@ -63,12 +63,9 @@ public class GameBoard {
             this.languagesAvailable.put(this.languagesAvailable.size() + 1, languages);
         });
 
-        if (!GameBoard.languageSelected.equals(this.languagesAvailable.get(1)[0])) {
-            GameBoard.languageSelected = this.languagesAvailable.get(1)[0];
-            loadGameByLanguage();
-        }
-
-        ErrorsProperties.loadProperties(GameBoard.languageSelected);
+        GameBoard.languageSelected = ApplicationProperties.getProperty("languages.default");
+        this.loadGameByLanguage();
+        this.loadErrorsByLanguage();
     }
 
     private void loadGameByLanguage() {
@@ -92,39 +89,78 @@ public class GameBoard {
         });
     }
 
-    private void selectLanguage() throws ScanInputException {
-
-        List<String> lines = new ArrayList<>();
-
-        for (Map.Entry<Integer, String[]> entry : this.languagesAvailable.entrySet()) {
-            Integer key = entry.getKey();
-            String[] value = entry.getValue();
-            lines.add("%d - %s".formatted(key, value[1]));
-        }
-
-        PrintFormatter.print("Select a language", lines);
-
-        System.out.print("Enter your choice > ");
-        int input = ScanInput.ScanChooseMenu(this.languagesAvailable.size());
-
-        GameBoard.languageSelected = this.languagesAvailable.get(input)[0];
+    private void loadErrorsByLanguage() {
+        ErrorsProperties.loadProperties(GameBoard.languageSelected);
     }
 
-    private void selectGame() throws ScanInputException {
-        List<String> lines = new ArrayList<>();
+    private void selectLanguage() throws ExitGameException {
+        while (true) {
+            try {
+                List<String> lines = new ArrayList<>();
 
-        for (Map.Entry<Integer, String[]> entry : this.gamesName.entrySet()) {
-            Integer key = entry.getKey();
-            String[] value = entry.getValue();
-            lines.add("%d - %s".formatted(key, value[1]));
+                for (Map.Entry<Integer, String[]> entry : this.languagesAvailable.entrySet()) {
+                    Integer key = entry.getKey();
+                    String[] value = entry.getValue();
+                    lines.add("%d - %s".formatted(key, value[1]));
+                }
+
+                PrintFormatter.print("Select a language", lines);
+
+                System.out.print("Enter your choice > ");
+                int input = ScanInput.ScanChooseMenu(this.languagesAvailable.size());
+
+                if (!GameBoard.languageSelected.equals(this.languagesAvailable.get(input)[0])) {
+                    GameBoard.languageSelected = this.languagesAvailable.get(input)[0];
+                    this.loadGameByLanguage();
+                    this.loadErrorsByLanguage();
+                }
+                break;
+            } catch (NumberFormatException e) {
+                GameBoard.errorMessage = ErrorsProperties
+                        .getProperty("input.notInteger")
+                        .formatted(this.languagesAvailable.size());
+            } catch (ScanInputException e) {
+                GameBoard.errorMessage = e.getMessage();
+            }
         }
+    }
 
-        PrintFormatter.print("Select a game", lines);
+    private void selectGame() throws ExitGameException, MissingResourceException {
+        while (true) {
+            try {
+                List<String> lines = new ArrayList<>();
 
-        System.out.print("Enter your choice > ");
-        int input = ScanInput.ScanChooseMenu(this.gamesName.size());
+                for (Map.Entry<Integer, String[]> entry : this.gamesName.entrySet()) {
+                    Integer key = entry.getKey();
+                    String[] value = entry.getValue();
+                    lines.add("%d - %s".formatted(key, value[1]));
+                }
 
-        GameProperties.loadProperties(this.gamesName.get(input)[0]);
+                PrintFormatter.print("%s".formatted(ApplicationProperties.getProperty("%s.select.game".formatted(GameBoard.languageSelected))), lines);
+
+                System.out.printf("%s > ", ApplicationProperties.getProperty("%s.choice".formatted(GameBoard.languageSelected)));
+                int input = ScanInput.ScanChooseMenu(this.gamesName.size());
+
+                GameProperties.loadProperties(this.gamesName.get(input)[0]);
+                this.game = (Game) Class.forName(this.gamesName.get(input)[2]).getDeclaredConstructor().newInstance();
+                break;
+            } catch (NumberFormatException e) {
+                GameBoard.errorMessage = ErrorsProperties
+                        .getProperty("input.notInteger")
+                        .formatted(this.languagesAvailable.size());
+            } catch (ScanInputException e) {
+                GameBoard.errorMessage = e.getMessage();
+            } catch (ClassNotFoundException | InvocationTargetException | InstantiationException |
+                     IllegalAccessException | NoSuchMethodException e) {
+                throw new ExitGameException(e.getMessage());
+            } catch (MissingResourceException e) {
+                throw new MissingResourceException(
+                        "class not defined, please check the 'i18n_[lang]_[game].properties' file.",
+                        "GameProperties",
+                        "class"
+                );
+            }
+        }
     }
 
 }

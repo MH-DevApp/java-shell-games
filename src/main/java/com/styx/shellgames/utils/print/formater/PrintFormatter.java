@@ -6,9 +6,15 @@ import com.styx.shellgames.utils.ErrorsProperties;
 import java.util.List;
 
 public class PrintFormatter {
-    public static int MARGIN = 20;
+    private static int MARGIN;
 
     public static void print(String title, List<String> lines) {
+        print(title, lines, 20);
+    }
+
+    public static void print(String title, List<String> lines, int margin) {
+        PrintFormatter.MARGIN = margin;
+
         int maxLength = getMaxLength(lines);
 
         System.out.println();
